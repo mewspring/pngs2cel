@@ -1,0 +1,14 @@
+github.com/Noofbiz/tmx v0.2.1-0.20190816183652-6c4716dc9ba2/go.mod h1:gL6mQUTp1Vi9pq/gmCgyotzJ35lOQF2C2NKJrQtltAE=
+github.com/d4l3k/messagediff v1.2.2-0.20190829033028-7e0a312ae40b/go.mod h1:Oozbb1TVXFac9FtSIxHBMnBCq2qeH/2KkEQxENCrlLo=
+github.com/mewkiz/pkg v0.0.0-20190824101051-5e26a908f2d2/go.mod h1:NefHmmDOyP6U1WiFFk+jFR3YdHoTeueo8nOZ6i1vZbA=
+github.com/mewkiz/pkg v0.0.0-20200411195739-f6b5e26764c3 h1:gVKRsSn2rXZ29y56Xrl+vtw8mpowYz9UmoPJM+V/g5s=
+github.com/mewkiz/pkg v0.0.0-20200411195739-f6b5e26764c3/go.mod h1:3E2FUC/qYUfM8+r9zAwpeHJzqRVVMIYnpzD/clwWxyA=
+github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
+github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
+github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
+github.com/sanctuary/formats v0.0.0-20200419174750-c646ccdb5a40 h1:cZSm3+fphxyCDGZdGDf+mDJP0yOc8lEs5ftGzT3eTh0=
+github.com/sanctuary/formats v0.0.0-20200419174750-c646ccdb5a40/go.mod h1:JY9YiXJaJAkaxtYImSb8JwwWCsy8epGdFriWTf6l7sQ=
+golang.org/x/image v0.0.0-20190220214146-31aff87c08e9 h1:+vH8qNweCrORN49012OX3h0oWEXO3p+rRnpAGQinddk=
+golang.org/x/image v0.0.0-20190220214146-31aff87c08e9/go.mod h1:kZ7UVZpmo3dzQBMxlp+ypCbDeSB+sBbTgSJuh5dn5js=
+golang.org/x/net v0.0.0-20190213061140-3a22650c66bd/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
+golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
