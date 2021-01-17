@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 
 	"github.com/mewkiz/pkg/imgutil"
 	"github.com/pkg/errors"
-	"github.com/sanctuary/formats/image/cel"
 )
 
 func usage() {
@@ -54,7 +54,7 @@ func main() {
 // palette from the specified PAL path.
 func pngs2cel(pngPaths []string, output, palPath string, cl2 bool) error {
 	// Parse town.pal.
-	pal, err := cel.ParsePal(palPath)
+	pal, err := parsePal(palPath)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -270,4 +270,43 @@ func dumpCel(celImg celImage, output string) error {
 func isTransparent(c color.Color) bool {
 	_, _, _, a := c.RGBA()
 	return a == 0
+}
+
+// parsePal parses the given PAL file and returns the corresponding palette.
+//
+// Below follows a pseudo-code description of the PAL file format.
+//
+//    // A PAL file contains a sequence of colour definitions, representing a
+//    // palette.
+//    type PAL [256]Color
+//
+//    // A Color represents a colour specified by red, green and blue intensity
+//    // levels.
+//    type Color struct {
+//       red, green, blue byte
+//    }
+func parsePal(palPath string) (color.Palette, error) {
+	buf, err := ioutil.ReadFile(palPath)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	const (
+		// Number of colours within a palette.
+		ncolors = 256
+		// The size of each colour in bytes.
+		colorSize = 3
+	)
+	if len(buf) != ncolors*colorSize {
+		return nil, errors.Errorf("invalid PAL file size for %q; expected %d, got %d", palPath, ncolors*colorSize, len(buf))
+	}
+	pal := make(color.Palette, ncolors)
+	for i := range pal {
+		pal[i] = color.RGBA{
+			R: buf[i*colorSize],
+			G: buf[i*colorSize+1],
+			B: buf[i*colorSize+2],
+			A: 0xFF,
+		}
+	}
+	return pal, nil
 }
