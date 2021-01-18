@@ -13,7 +13,7 @@ go build
 ### Single PNG image to CEL
 
 ```bash
-# Convert single PNG image into a corresponding CEL image.
+# Convert a single PNG image into a corresponding CEL image.
 ./pngs2cel -o panel8.cel -pal_path /path/to/town.pal panel8.png
 ```
 
