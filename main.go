@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -572,7 +571,8 @@ func parsePal(palPath string) (color.Palette, error) {
 // directory.
 func findFilesInDir(dir string) ([]string, error) {
 	var filePaths []string
-	visit := func(path string, info fs.FileInfo, err error) error {
+	// TODO: use fs.FileInfo directly when Go 1.16 has been released.
+	visit := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return errors.WithStack(err)
 		}
