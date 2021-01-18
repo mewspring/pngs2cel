@@ -26,6 +26,8 @@ go build
 
 ![Custom health and mana orb graphics](inc/cel.png "Custom health and mana orb graphics")
 
+NOTE: The custom health and mana orb graphics were from [Qndel](https://github.com/qndel) (who in term got them from someone). If you know who, please let me know and I'll add the proper attribution.
+
 ### Multiple PNG images to CL2
 
 ```bash
