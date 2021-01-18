@@ -44,7 +44,7 @@ NOTE: The custom health and mana orb graphics were from [Qndel](https://github.c
 ./pngs2cel -cl2_archive -o wyvern_breathe.cl2 -pal_path /path/to/town.pal wyvern_breathe_{1,2,3,4,5,6,7,8}
 ```
 
-[![Custom Wyvern (fire spell) animation graphics](inc/wyvern_cl2_graphics.jpg "Custom Wyvern (fire spell) animation graphics")](https://github.com/mewspring/pngs2cel/blob/master/inc/wyvern_cl2_graphics.mp4?raw=true "Click to view video")
+[![Custom Wyvern (fire spell) animation graphics](inc/wyvern_cl2_graphics.png "Custom Wyvern (fire spell) animation graphics")](https://github.com/mewspring/pngs2cel/blob/master/inc/wyvern_cl2_graphics.mp4?raw=true "Click to view video")
 
 NOTE: The Wyvern graphics is part of [Flare](https://flarerpg.org/).
 
