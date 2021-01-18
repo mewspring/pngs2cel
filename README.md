@@ -42,7 +42,7 @@ go build
 ./pngs2cel -cl2_archive -o wyvern_breathe.cl2 -pal_path /path/to/town.pal wyvern_breathe_{1,2,3,4,5,6,7,8}
 ```
 
-[![Custom Wyvern (fire spell) animation graphics](inc/cl2.png "Custom Wyvern (fire spell) animation graphics")](inc/wyvern_cl2_graphics.mp4)
+[![Custom Wyvern (fire spell) animation graphics](inc/wyvern_cl2_graphics.jpg "Custom Wyvern (fire spell) animation graphics")](inc/wyvern_cl2_graphics.mp4)
 
 NOTE: The Wyvern graphics is part of [Flare](https://flarerpg.org/).
 
