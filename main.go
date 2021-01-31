@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	ciede2000 "github.com/mattn/go-ciede2000"
 	"github.com/mewkiz/pkg/imgutil"
 	"github.com/pkg/errors"
 )
@@ -232,7 +233,7 @@ func getCelFrame(img image.Image, pal color.Palette) []byte {
 				if ntrans > 0 {
 					setTrans()
 				}
-				idx := byte(pal.Index(c))
+				idx := byte(IndexCIEDE2000(pal, c))
 				pixels = append(pixels, idx)
 			}
 			lastPixelOnRow := x == bounds.Max.X-1
@@ -333,7 +334,7 @@ func getCL2EmbeddedFrame(img image.Image, pal color.Palette) []byte {
 				if ntrans > 0 {
 					setTrans()
 				}
-				idx := byte(pal.Index(c))
+				idx := byte(IndexCIEDE2000(pal, c))
 				pixels = append(pixels, idx)
 			}
 			// -1 through -65
@@ -382,7 +383,7 @@ func getCL2Frame(img image.Image, pal color.Palette) []byte {
 				if ntrans > 0 {
 					setTrans()
 				}
-				idx := byte(pal.Index(c))
+				idx := byte(IndexCIEDE2000(pal, c))
 				pixels = append(pixels, idx)
 			}
 			lastPixel := x == bounds.Max.X-1 && y == bounds.Max.Y-1
@@ -586,4 +587,24 @@ func findFilesInDir(dir string) ([]string, error) {
 		return nil, errors.WithStack(err)
 	}
 	return filePaths, nil
+}
+
+// Index returns the index of the palette color closest to c using the CIE Delta
+// E 2000 Color-Difference algorithm.
+func IndexCIEDE2000(pal color.Palette, orig color.Color) int {
+	var (
+		bestDiff float64
+		ret      int
+	)
+	for i, c2 := range pal {
+		diff := ciede2000.Diff(orig, c2)
+		if diff == 0 {
+			return i
+		}
+		if i == 0 || diff < bestDiff {
+			bestDiff = diff
+			ret = i
+		}
+	}
+	return ret
 }
