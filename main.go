@@ -27,10 +27,12 @@ Usage:
 	flag.PrintDefaults()
 }
 
-// Use CIE Delta E 2000 for color conversion
-var useCIE2000 bool
-// Threshold amount for Euclidean method
-var useThreshold int
+var (
+	// Use CIE Delta E 2000 for color conversion
+	useCIE2000 bool
+	// Threshold amount for Euclidean method
+	useThreshold int
+)
 
 func main() {
 	// Parse command line arguments.
@@ -46,8 +48,8 @@ func main() {
 	)
 	flag.BoolVar(&cl2Flag, "cl2", false, "store output in CL2 format")
 	flag.BoolVar(&cl2ArchiveFlag, "cl2_archive", false, "store output in CL2 archive format")
-	flag.BoolVar(&useCIE2000, "c", false, "use CIE Delta E 2000 instead of Euclidean")
-	flag.IntVar(&useThreshold, "t", 0, "threshold amount for Euclidean conversion")
+	flag.BoolVar(&useCIE2000, "cie2000", false, "use CIE Delta E 2000 instead of Euclidean")
+	flag.IntVar(&useThreshold, "threshold", 0, "threshold amount for Euclidean conversion")
 	flag.StringVar(&output, "o", "output.cel", "CEL or CL2 image output path")
 	flag.StringVar(&palPath, "pal_path", "town.pal", "path to levels/towndata/town.pal")
 	flag.Usage = usage
@@ -616,33 +618,35 @@ func IndexCIEDE2000(pal color.Palette, orig color.Color) int {
 	return ret
 }
 
-// Color can convert itself to alpha-premultiplied 16-bits per channel RGBA.
-// The conversion may be lossy.
-type Color interface {
-	RGBA() (r, g, b, a uint32)
-}
+// Channel specifies a color channel.
+type Channel int
 
-// Palette is a palette of colors.
-type Palette []Color
+// Color channels.
+const (
+	ChannelNone  Channel = 0
+	ChannelRed   Channel = 1
+	ChannelGreen Channel = 2
+	ChannelBlue  Channel = 3
+)
 
-// Find the brightest color
-func GreatestColor(r int, g int, b int) int {
+// GreatestColor finds the brightest color in an R,G,B space
+func GreatestColor(r int, g int, b int) Channel {
 	if r > g && r > b {
-		return 1
+		return ChannelRed
 	}
 	if g > r && g > b {
-		return 2
+		return ChannelGreen
 	}
 	if b > r && b > g {
-		return 3
+		return ChannelBlue
 	}
 
-	return 0
+	return ChannelNone
 }
 
-// Index returns the index of the palette color closest to c in Euclidean
-// R,G,B,A space. Strongest color multiplied by the treshold value.
-func IndexMult(p color.Palette, c Color, thresh uint32) int {
+// IndexMult returns the index of the palette color closest to c in Euclidean
+// R,G,B,A space. Strongest color multiplied by the threshold value.
+func IndexMult(p color.Palette, c color.Color, thresh uint32) int {
 	cr, cg, cb, ca := c.RGBA()
 	// Is this color visibly red, green, or blue?
 	brightest := GreatestColor(int(cr), int(cg), int(cb))
@@ -654,15 +658,15 @@ func IndexMult(p color.Palette, c Color, thresh uint32) int {
 		bb := sqDiff(cb, vb)
 		aa := ca - va
 		if aa != 0 {
+			// Ignore alpha channel
 			aa = 0
 		}
-		if brightest == 1 {
+		switch brightest {
+		case ChannelRed:
 			rr *= thresh
-		}
-		if brightest == 2 {
+		case ChannelGreen:
 			gg *= thresh
-		}
-		if brightest == 3 {
+		case ChannelBlue:
 			bb *= thresh
 		}
 		sum := rr + gg + bb
@@ -683,10 +687,10 @@ func IndexMult(p color.Palette, c Color, thresh uint32) int {
 func sqDiff(x, y uint32) uint32 {
 	d := x - y
 	return (d * d) >> 2
-
 }
 
-// Find the closest color based on the chosen algorithm
+// FindClosest returns the palette index of the closest color to orig based on
+// the chosen color matching algorithm.
 func FindClosest(pal color.Palette, orig color.Color) int {
 	if useCIE2000 {
 		return IndexCIEDE2000(pal, orig)
