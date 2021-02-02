@@ -27,6 +27,13 @@ Usage:
 	flag.PrintDefaults()
 }
 
+var (
+	// Use CIE Delta E 2000 for color conversion
+	useCIE2000 bool
+	// Threshold amount for Euclidean method
+	useThreshold int
+)
+
 func main() {
 	// Parse command line arguments.
 	var (
@@ -41,6 +48,8 @@ func main() {
 	)
 	flag.BoolVar(&cl2Flag, "cl2", false, "store output in CL2 format")
 	flag.BoolVar(&cl2ArchiveFlag, "cl2_archive", false, "store output in CL2 archive format")
+	flag.BoolVar(&useCIE2000, "cie2000", false, "use CIE Delta E 2000 instead of Euclidean")
+	flag.IntVar(&useThreshold, "threshold", 0, "threshold amount for Euclidean conversion")
 	flag.StringVar(&output, "o", "output.cel", "CEL or CL2 image output path")
 	flag.StringVar(&palPath, "pal_path", "town.pal", "path to levels/towndata/town.pal")
 	flag.Usage = usage
@@ -233,7 +242,7 @@ func getCelFrame(img image.Image, pal color.Palette) []byte {
 				if ntrans > 0 {
 					setTrans()
 				}
-				idx := byte(IndexCIEDE2000(pal, c))
+				idx := byte(FindClosest(pal, c))
 				pixels = append(pixels, idx)
 			}
 			lastPixelOnRow := x == bounds.Max.X-1
@@ -334,7 +343,7 @@ func getCL2EmbeddedFrame(img image.Image, pal color.Palette) []byte {
 				if ntrans > 0 {
 					setTrans()
 				}
-				idx := byte(IndexCIEDE2000(pal, c))
+				idx := byte(FindClosest(pal, c))
 				pixels = append(pixels, idx)
 			}
 			// -1 through -65
@@ -383,7 +392,7 @@ func getCL2Frame(img image.Image, pal color.Palette) []byte {
 				if ntrans > 0 {
 					setTrans()
 				}
-				idx := byte(IndexCIEDE2000(pal, c))
+				idx := byte(FindClosest(pal, c))
 				pixels = append(pixels, idx)
 			}
 			lastPixel := x == bounds.Max.X-1 && y == bounds.Max.Y-1
@@ -607,4 +616,87 @@ func IndexCIEDE2000(pal color.Palette, orig color.Color) int {
 		}
 	}
 	return ret
+}
+
+// Channel specifies a color channel.
+type Channel int
+
+// Color channels.
+const (
+	ChannelNone  Channel = 0
+	ChannelRed   Channel = 1
+	ChannelGreen Channel = 2
+	ChannelBlue  Channel = 3
+)
+
+// GreatestColor finds the brightest color in an R,G,B space
+func GreatestColor(r int, g int, b int) Channel {
+	if r > g && r > b {
+		return ChannelRed
+	}
+	if g > r && g > b {
+		return ChannelGreen
+	}
+	if b > r && b > g {
+		return ChannelBlue
+	}
+
+	return ChannelNone
+}
+
+// IndexMult returns the index of the palette color closest to c in Euclidean
+// R,G,B,A space. Strongest color multiplied by the threshold value.
+func IndexMult(p color.Palette, c color.Color, thresh uint32) int {
+	cr, cg, cb, ca := c.RGBA()
+	// Is this color visibly red, green, or blue?
+	brightest := GreatestColor(int(cr), int(cg), int(cb))
+	ret, bestSum := 0, uint32(1<<32-1)
+	for i, v := range p {
+		vr, vg, vb, va := v.RGBA()
+		rr := sqDiff(cr, vr)
+		gg := sqDiff(cg, vg)
+		bb := sqDiff(cb, vb)
+		aa := ca - va
+		if aa != 0 {
+			// Ignore alpha channel
+			aa = 0
+		}
+		switch brightest {
+		case ChannelRed:
+			rr *= thresh
+		case ChannelGreen:
+			gg *= thresh
+		case ChannelBlue:
+			bb *= thresh
+		}
+		sum := rr + gg + bb
+		if sum < bestSum {
+			if sum == 0 {
+				return i
+			}
+			ret, bestSum = i, sum
+		}
+	}
+	return ret
+}
+
+// sqDiff returns the squared-difference of x and y, shifted by 2 so that
+// adding four of those won't overflow a uint32.
+//
+// x and y are both assumed to be in the range [0, 0xffff].
+func sqDiff(x, y uint32) uint32 {
+	d := x - y
+	return (d * d) >> 2
+}
+
+// FindClosest returns the palette index of the closest color to orig based on
+// the chosen color matching algorithm.
+func FindClosest(pal color.Palette, orig color.Color) int {
+	if useCIE2000 {
+		return IndexCIEDE2000(pal, orig)
+	} else if useThreshold != 0 {
+		return IndexMult(pal, orig, uint32(useThreshold))
+	} else {
+		return pal.Index(orig)
+	}
 }
