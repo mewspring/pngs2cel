@@ -537,7 +537,7 @@ func dumpCL2Archive(cl2Archive *CL2Archive, output string) error {
 // isTransparent reports whether the given colour is transparent.
 func isTransparent(c color.Color) bool {
 	_, _, _, a := c.RGBA()
-	return a == 0
+	return a < 32768
 }
 
 // parsePal parses the given PAL file and returns the corresponding palette.
