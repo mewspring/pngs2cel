@@ -190,13 +190,15 @@ func createCL2(imgs []image.Image, pal color.Palette, cl2ArchiveFlag bool) *CELI
 	nframes := len(imgs)
 	var frames [][]byte
 	for _, img := range imgs {
-		var frame []byte
+		var (
+			frame  []byte
+			header []byte
+		)
 		if cl2ArchiveFlag {
-			frame = getCL2EmbeddedFrame(img, pal)
+			frame, header = getCL2EmbeddedFrame(img, pal)
 		} else {
-			frame = getCL2Frame(img, pal)
+			frame, header = getCL2Frame(img, pal)
 		}
-		header := []byte{0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 		frame = append(header, frame...)
 		frames = append(frames, frame)
 	}
@@ -316,9 +318,8 @@ func runLength(pixels []byte) int {
 // getCL2EmbeddedFrame converts the given image to the corresponding CL2 frame
 // contents (as embedded within a CL2 archive), using the specified palette for
 // colours.
-func getCL2EmbeddedFrame(img image.Image, pal color.Palette) []byte {
+func getCL2EmbeddedFrame(img image.Image, pal color.Palette) (frame, header []byte) {
 	bounds := img.Bounds()
-	var frame []byte
 	ntrans := 0       // transparent pixels.
 	var pixels []byte // regular pixels.
 	// Set regular pixels.
@@ -336,7 +337,21 @@ func getCL2EmbeddedFrame(img image.Image, pal color.Palette) []byte {
 		frame = append(frame, t)
 		ntrans = 0
 	}
+	const headerSize = 10
+	header = []byte{
+		0x0A, 0x00, // offset to pixel row 0 (0xA bytes)
+		0x00, 0x00, // offset to pixel row 32 (placehodler value)
+		0x00, 0x00, // offset to pixel row 64 (placehodler value)
+		0x00, 0x00, // offset to pixel row 96 (placehodler value)
+		0x00, 0x00, // offset to pixel row 128 (placehodler value)
+	}
+	i := 0
 	for y := bounds.Max.Y - 1; y >= 0; y-- {
+		if (y+1)%32 == 0 {
+			offset := headerSize + len(frame)
+			binary.LittleEndian.PutUint16(header[i*2:], uint16(offset))
+			i++
+		}
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			c := img.At(x, y)
 			if isTransparent(c) {
@@ -362,14 +377,13 @@ func getCL2EmbeddedFrame(img image.Image, pal color.Palette) []byte {
 			}
 		}
 	}
-	return frame
+	return frame, header
 }
 
 // getCL2Frame converts the given image to the corresponding CL2 frame contents,
 // using the specified palette for colours.
-func getCL2Frame(img image.Image, pal color.Palette) []byte {
+func getCL2Frame(img image.Image, pal color.Palette) (frame, header []byte) {
 	bounds := img.Bounds()
-	var frame []byte
 	ntrans := 0       // transparent pixels.
 	var pixels []byte // regular pixels.
 	// Set regular pixels.
@@ -385,7 +399,21 @@ func getCL2Frame(img image.Image, pal color.Palette) []byte {
 		frame = append(frame, t)
 		ntrans = 0
 	}
+	const headerSize = 10
+	header = []byte{
+		0x0A, 0x00, // offset to pixel row 0 (0xA bytes)
+		0x00, 0x00, // offset to pixel row 32 (placehodler value)
+		0x00, 0x00, // offset to pixel row 64 (placehodler value)
+		0x00, 0x00, // offset to pixel row 96 (placehodler value)
+		0x00, 0x00, // offset to pixel row 128 (placehodler value)
+	}
+	i := 0
 	for y := bounds.Max.Y - 1; y >= 0; y-- {
+		if (y+1)%32 == 0 {
+			offset := headerSize + len(frame)
+			binary.LittleEndian.PutUint16(header[i*2:], uint16(offset))
+			i++
+		}
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			c := img.At(x, y)
 			if isTransparent(c) {
@@ -412,7 +440,7 @@ func getCL2Frame(img image.Image, pal color.Palette) []byte {
 			}
 		}
 	}
-	return frame
+	return frame, header
 }
 
 // dumpCEL writes the given CEL image in binary format to the specified output
