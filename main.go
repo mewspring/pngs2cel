@@ -33,7 +33,7 @@ var (
 	// Threshold amount for Euclidean method.
 	useThreshold int
 	// Transparent colour value.
-	nColorKey int
+	colourKey int
 )
 
 func main() {
@@ -52,7 +52,7 @@ func main() {
 	flag.BoolVar(&cl2ArchiveFlag, "cl2_archive", false, "store output in CL2 archive format")
 	flag.BoolVar(&useCIE2000, "cie2000", false, "use CIE Delta E 2000 instead of Euclidean colour conversion")
 	flag.IntVar(&useThreshold, "threshold", 0, "threshold amount for Euclidean colour conversion")
-	flag.IntVar(&nColorKey, "col_key", -1, "manually specify RGB value of transparent colour (e.g. 0xFF0000 for red)")
+	flag.IntVar(&colourKey, "col_key", -1, "manually specify RGB value of transparent colour (e.g. 0xFF0000 for red)")
 	flag.StringVar(&output, "o", "output.cel", "CEL or CL2 image output path")
 	flag.StringVar(&palPath, "pal_path", "town.pal", "path to levels/towndata/town.pal")
 	flag.Usage = usage
@@ -544,10 +544,10 @@ func isTransparent(c color.Color) bool {
 		return true
 	}
 
-	if nColorKey >= 0 { // user-specified alpha RGB
-		rr := (nColorKey >> 16) & 0xFF
-		gg := (nColorKey >> 8) & 0xFF
-		bb := nColorKey & 0xFF
+	if colourKey >= 0 { // user-specified alpha RGB
+		rr := (colourKey >> 16) & 0xFF
+		gg := (colourKey >> 8) & 0xFF
+		bb := colourKey & 0xFF
 		if int(r) == rr && int(g) == gg && int(b) == bb {
 			return true
 		}
