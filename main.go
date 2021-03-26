@@ -548,7 +548,7 @@ func isTransparent(c color.Color) bool {
 		rr := (colourKey >> 16) & 0xFF
 		gg := (colourKey >> 8) & 0xFF
 		bb := colourKey & 0xFF
-		if int(r) == rr && int(g) == gg && int(b) == bb {
+		if int(r >> 8) == rr && int(g >> 8) == gg && int(b >> 8) == bb {
 			return true
 		}
 	}
