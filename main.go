@@ -265,8 +265,7 @@ func getCelFrame(img image.Image, pal color.Palette) []byte {
 }
 
 // rleEncode returns an RLE-encoded version of the given pixels.
-func rleEncode(pixels []byte) []byte {
-	var buf []byte
+func rleEncode(pixels []byte) (outPixels, buf []byte) {
 	var i int
 	start := 0
 	for i = 0; i < len(pixels); {
@@ -279,6 +278,7 @@ func rleEncode(pixels []byte) []byte {
 				buf = append(buf, cmd)
 				buf = append(buf, pixels[start:i]...)
 				start = i
+				return pixels[start:], buf
 			}
 			// store RLE-encoded pixels.
 			idx := pixels[i]
@@ -287,6 +287,7 @@ func rleEncode(pixels []byte) []byte {
 			buf = append(buf, idx)
 			i += n
 			start = i
+			return pixels[start:], buf
 		} else {
 			i++
 		}
@@ -297,8 +298,9 @@ func rleEncode(pixels []byte) []byte {
 		cmd := uint8(int8(-m))
 		buf = append(buf, cmd)
 		buf = append(buf, pixels[start:i]...)
+		start = i
 	}
-	return buf
+	return pixels[start:], buf
 }
 
 // runLength returns the number of identical pixels in a row, as used for
@@ -324,12 +326,18 @@ func getCL2EmbeddedFrame(img image.Image, pal color.Palette) (frame, header []by
 	var pixels []byte // regular pixels.
 	// Set regular pixels.
 	setRegular := func() {
-		buf := rleEncode(pixels)
+		var buf []byte
+		pixels, buf = rleEncode(pixels)
 		frame = append(frame, buf...)
 		//cmd := byte(-len(pixels))
 		//frame = append(frame, cmd)
 		//frame = append(frame, pixels...)
-		pixels = pixels[:0] // reset pixel buffer.
+		//pixels = pixels[:0] // reset pixel buffer.
+	}
+	setAllRegular := func() {
+		for len(pixels) > 0 {
+			setRegular()
+		}
 	}
 	// Set transparent pixels.
 	setTrans := func() {
@@ -346,8 +354,15 @@ func getCL2EmbeddedFrame(img image.Image, pal color.Palette) (frame, header []by
 		0x00, 0x00, // offset to pixel row 128 (placehodler value)
 	}
 	i := 0
-	for y := bounds.Max.Y - 1; y >= 0; y-- {
+	for y := bounds.Max.Y - 1; y >= bounds.Min.Y; y-- {
 		if (y+1)%32 == 0 {
+			// Flush pixel line for Slab table.
+			if len(pixels) > 0 {
+				setAllRegular()
+			}
+			if ntrans > 0 {
+				setTrans()
+			}
 			offset := headerSize + len(frame)
 			binary.LittleEndian.PutUint16(header[i*2:], uint16(offset))
 			i++
@@ -356,7 +371,7 @@ func getCL2EmbeddedFrame(img image.Image, pal color.Palette) (frame, header []by
 			c := img.At(x, y)
 			if isTransparent(c) {
 				if len(pixels) > 0 {
-					setRegular()
+					setAllRegular()
 				}
 				ntrans++
 			} else {
@@ -367,11 +382,20 @@ func getCL2EmbeddedFrame(img image.Image, pal color.Palette) (frame, header []by
 				pixels = append(pixels, idx)
 			}
 			// -1 through -65
+			lastPixel := x == bounds.Max.X-1 && y == bounds.Min.Y
+			if lastPixel && len(pixels) > 0 {
+				setAllRegular()
+				continue
+			}
 			if len(pixels) >= 65 { // TODO: double check; should be `len(pixels) >= 64`?
+				// Append one control byte sequence of pixels. This is to ensure
+				// that no more than 65 non-run length pixels fit into a control
+				// byte. The pixel array is not emptied entirely, it is just made
+				// one control byte sequence shorter.
 				setRegular()
 				continue
 			}
-			if ntrans >= 0x7F {
+			if ntrans >= 0x7F || (ntrans > 0 && lastPixel) {
 				setTrans()
 				continue
 			}
@@ -428,7 +452,7 @@ func getCL2Frame(img image.Image, pal color.Palette) (frame, header []byte) {
 				idx := byte(FindClosest(pal, c))
 				pixels = append(pixels, idx)
 			}
-			lastPixel := x == bounds.Max.X-1 && y == bounds.Max.Y-1
+			lastPixel := x == bounds.Max.X-1 && y == bounds.Min.Y
 			// -1 through -65
 			if len(pixels) >= 65 || (len(pixels) > 0 && lastPixel) {
 				setRegular()
@@ -576,7 +600,7 @@ func isTransparent(c color.Color) bool {
 		rr := (colourKey >> 16) & 0xFF
 		gg := (colourKey >> 8) & 0xFF
 		bb := colourKey & 0xFF
-		if int(r >> 8) == rr && int(g >> 8) == gg && int(b >> 8) == bb {
+		if int(r>>8) == rr && int(g>>8) == gg && int(b>>8) == bb {
 			return true
 		}
 	}
