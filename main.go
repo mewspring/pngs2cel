@@ -190,13 +190,15 @@ func createCL2(imgs []image.Image, pal color.Palette, cl2ArchiveFlag bool) *CELI
 	nframes := len(imgs)
 	var frames [][]byte
 	for _, img := range imgs {
-		var frame []byte
+		var (
+			frame  []byte
+			header []byte
+		)
 		if cl2ArchiveFlag {
-			frame = getCL2EmbeddedFrame(img, pal)
+			frame, header = getCL2EmbeddedFrame(img, pal)
 		} else {
-			frame = getCL2Frame(img, pal)
+			frame, header = getCL2Frame(img, pal)
 		}
-		header := []byte{0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 		frame = append(header, frame...)
 		frames = append(frames, frame)
 	}
@@ -263,8 +265,7 @@ func getCelFrame(img image.Image, pal color.Palette) []byte {
 }
 
 // rleEncode returns an RLE-encoded version of the given pixels.
-func rleEncode(pixels []byte) []byte {
-	var buf []byte
+func rleEncode(pixels []byte) (outPixels, buf []byte) {
 	var i int
 	start := 0
 	for i = 0; i < len(pixels); {
@@ -277,6 +278,7 @@ func rleEncode(pixels []byte) []byte {
 				buf = append(buf, cmd)
 				buf = append(buf, pixels[start:i]...)
 				start = i
+				return pixels[start:], buf
 			}
 			// store RLE-encoded pixels.
 			idx := pixels[i]
@@ -285,6 +287,7 @@ func rleEncode(pixels []byte) []byte {
 			buf = append(buf, idx)
 			i += n
 			start = i
+			return pixels[start:], buf
 		} else {
 			i++
 		}
@@ -295,8 +298,9 @@ func rleEncode(pixels []byte) []byte {
 		cmd := uint8(int8(-m))
 		buf = append(buf, cmd)
 		buf = append(buf, pixels[start:i]...)
+		start = i
 	}
-	return buf
+	return pixels[start:], buf
 }
 
 // runLength returns the number of identical pixels in a row, as used for
@@ -316,19 +320,24 @@ func runLength(pixels []byte) int {
 // getCL2EmbeddedFrame converts the given image to the corresponding CL2 frame
 // contents (as embedded within a CL2 archive), using the specified palette for
 // colours.
-func getCL2EmbeddedFrame(img image.Image, pal color.Palette) []byte {
+func getCL2EmbeddedFrame(img image.Image, pal color.Palette) (frame, header []byte) {
 	bounds := img.Bounds()
-	var frame []byte
 	ntrans := 0       // transparent pixels.
 	var pixels []byte // regular pixels.
 	// Set regular pixels.
 	setRegular := func() {
-		buf := rleEncode(pixels)
+		var buf []byte
+		pixels, buf = rleEncode(pixels)
 		frame = append(frame, buf...)
 		//cmd := byte(-len(pixels))
 		//frame = append(frame, cmd)
 		//frame = append(frame, pixels...)
-		pixels = pixels[:0] // reset pixel buffer.
+		//pixels = pixels[:0] // reset pixel buffer.
+	}
+	setAllRegular := func() {
+		for len(pixels) > 0 {
+			setRegular()
+		}
 	}
 	// Set transparent pixels.
 	setTrans := func() {
@@ -336,12 +345,33 @@ func getCL2EmbeddedFrame(img image.Image, pal color.Palette) []byte {
 		frame = append(frame, t)
 		ntrans = 0
 	}
-	for y := bounds.Max.Y - 1; y >= 0; y-- {
+	const headerSize = 10
+	header = []byte{
+		0x0A, 0x00, // offset to pixel row 0 (0xA bytes)
+		0x00, 0x00, // offset to pixel row 32 (placehodler value)
+		0x00, 0x00, // offset to pixel row 64 (placehodler value)
+		0x00, 0x00, // offset to pixel row 96 (placehodler value)
+		0x00, 0x00, // offset to pixel row 128 (placehodler value)
+	}
+	i := 0
+	for y := bounds.Max.Y - 1; y >= bounds.Min.Y; y-- {
+		if (y+1)%32 == 0 {
+			// Flush pixel line for Slab table.
+			if len(pixels) > 0 {
+				setAllRegular()
+			}
+			if ntrans > 0 {
+				setTrans()
+			}
+			offset := headerSize + len(frame)
+			binary.LittleEndian.PutUint16(header[i*2:], uint16(offset))
+			i++
+		}
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			c := img.At(x, y)
 			if isTransparent(c) {
 				if len(pixels) > 0 {
-					setRegular()
+					setAllRegular()
 				}
 				ntrans++
 			} else {
@@ -352,24 +382,32 @@ func getCL2EmbeddedFrame(img image.Image, pal color.Palette) []byte {
 				pixels = append(pixels, idx)
 			}
 			// -1 through -65
+			lastPixel := x == bounds.Max.X-1 && y == bounds.Min.Y
+			if lastPixel && len(pixels) > 0 {
+				setAllRegular()
+				continue
+			}
 			if len(pixels) >= 65 { // TODO: double check; should be `len(pixels) >= 64`?
+				// Append one control byte sequence of pixels. This is to ensure
+				// that no more than 65 non-run length pixels fit into a control
+				// byte. The pixel array is not emptied entirely, it is just made
+				// one control byte sequence shorter.
 				setRegular()
 				continue
 			}
-			if ntrans >= 0x7F {
+			if ntrans >= 0x7F || (ntrans > 0 && lastPixel) {
 				setTrans()
 				continue
 			}
 		}
 	}
-	return frame
+	return frame, header
 }
 
 // getCL2Frame converts the given image to the corresponding CL2 frame contents,
 // using the specified palette for colours.
-func getCL2Frame(img image.Image, pal color.Palette) []byte {
+func getCL2Frame(img image.Image, pal color.Palette) (frame, header []byte) {
 	bounds := img.Bounds()
-	var frame []byte
 	ntrans := 0       // transparent pixels.
 	var pixels []byte // regular pixels.
 	// Set regular pixels.
@@ -385,7 +423,21 @@ func getCL2Frame(img image.Image, pal color.Palette) []byte {
 		frame = append(frame, t)
 		ntrans = 0
 	}
+	const headerSize = 10
+	header = []byte{
+		0x0A, 0x00, // offset to pixel row 0 (0xA bytes)
+		0x00, 0x00, // offset to pixel row 32 (placehodler value)
+		0x00, 0x00, // offset to pixel row 64 (placehodler value)
+		0x00, 0x00, // offset to pixel row 96 (placehodler value)
+		0x00, 0x00, // offset to pixel row 128 (placehodler value)
+	}
+	i := 0
 	for y := bounds.Max.Y - 1; y >= 0; y-- {
+		if (y+1)%32 == 0 {
+			offset := headerSize + len(frame)
+			binary.LittleEndian.PutUint16(header[i*2:], uint16(offset))
+			i++
+		}
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			c := img.At(x, y)
 			if isTransparent(c) {
@@ -400,7 +452,7 @@ func getCL2Frame(img image.Image, pal color.Palette) []byte {
 				idx := byte(FindClosest(pal, c))
 				pixels = append(pixels, idx)
 			}
-			lastPixel := x == bounds.Max.X-1 && y == bounds.Max.Y-1
+			lastPixel := x == bounds.Max.X-1 && y == bounds.Min.Y
 			// -1 through -65
 			if len(pixels) >= 65 || (len(pixels) > 0 && lastPixel) {
 				setRegular()
@@ -412,7 +464,7 @@ func getCL2Frame(img image.Image, pal color.Palette) []byte {
 			}
 		}
 	}
-	return frame
+	return frame, header
 }
 
 // dumpCEL writes the given CEL image in binary format to the specified output
@@ -548,7 +600,7 @@ func isTransparent(c color.Color) bool {
 		rr := (colourKey >> 16) & 0xFF
 		gg := (colourKey >> 8) & 0xFF
 		bb := colourKey & 0xFF
-		if int(r >> 8) == rr && int(g >> 8) == gg && int(b >> 8) == bb {
+		if int(r>>8) == rr && int(g>>8) == gg && int(b>>8) == bb {
 			return true
 		}
 	}
