@@ -774,11 +774,16 @@ func FindClosest(pal color.Palette, orig color.Color) int {
 	case upperPal:
 		pal = pal[128:]
 	}
+	var idx int
 	if useCIE2000 {
-		return IndexCIEDE2000(pal, orig)
+		idx = IndexCIEDE2000(pal, orig)
 	} else if useThreshold != 0 {
-		return IndexMult(pal, orig, uint32(useThreshold))
+		idx = IndexMult(pal, orig, uint32(useThreshold))
 	} else {
-		return pal.Index(orig)
+		idx = pal.Index(orig)
 	}
+	if upperPal {
+		idx += 128
+	}
+	return idx
 }
