@@ -34,6 +34,10 @@ var (
 	useThreshold int
 	// Transparent colour value.
 	colourKey int
+	// Only use colours of the lower part of the palette (128 first colours).
+	lowerPal bool
+	// Only use colours of the upper part of the palette (128 last colours).
+	upperPal bool
 )
 
 func main() {
@@ -55,6 +59,8 @@ func main() {
 	flag.IntVar(&colourKey, "col_key", -1, "manually specify RGB value of transparent colour (e.g. 0xFF0000 for red)")
 	flag.StringVar(&output, "o", "output.cel", "CEL or CL2 image output path")
 	flag.StringVar(&palPath, "pal_path", "town.pal", "path to levels/towndata/town.pal")
+	flag.BoolVar(&lowerPal, "lower_pal", false, "only use colours of the lower part of the palette (128 first colours)")
+	flag.BoolVar(&upperPal, "upper_pal", false, "only use colours of the upper part of the palette (128 last colours)")
 	flag.Usage = usage
 	flag.Parse()
 	paths := flag.Args()
@@ -762,6 +768,12 @@ func sqDiff(x, y uint32) uint32 {
 // FindClosest returns the palette index of the closest colour to orig based on
 // the chosen colour matching algorithm.
 func FindClosest(pal color.Palette, orig color.Color) int {
+	switch {
+	case lowerPal:
+		pal = pal[:128]
+	case upperPal:
+		pal = pal[128:]
+	}
 	if useCIE2000 {
 		return IndexCIEDE2000(pal, orig)
 	} else if useThreshold != 0 {
