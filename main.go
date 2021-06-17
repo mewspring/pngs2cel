@@ -799,10 +799,12 @@ func FindClosest(pal color.Palette, orig color.Color) int {
 	} else {
 		idx = pal.Index(orig)
 	}
-	// Ensure index 0 is always chosen for black
-	r, g, b, _ := pal[idx].RGBA()
-	if r == 0 && g == 0 && b == 0 {
-		return 0
+	if lowerPal || upperPal {
+		// Ensure index 0 is always chosen for black
+		r, g, b, _ := pal[idx].RGBA()
+		if r == 0 && g == 0 && b == 0 {
+			return 0
+		}
 	}
 	return idx
 }
