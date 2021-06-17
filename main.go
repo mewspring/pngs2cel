@@ -699,7 +699,7 @@ type Channel int
 
 // Colour channels.
 const (
-	ChannelNone  Channel = 0
+	ChannelGray  Channel = 0
 	ChannelRed   Channel = 1
 	ChannelGreen Channel = 2
 	ChannelBlue  Channel = 3
@@ -707,6 +707,11 @@ const (
 
 // GreatestColor finds the brightest colour in an R,G,B space.
 func GreatestColor(r int, g int, b int) Channel {
+	// Note that the human eye is more sensitive to green hence the reason
+	// 16-bit colors often use 6 bits for green and 5 for red/blue.
+	// This can be simulated in 32-bit by increasing green by 20% and may
+	// produce more accurate results with images heavy in yellow/green.
+	// g += g / 5
 	if r > g && r > b {
 		return ChannelRed
 	}
@@ -716,27 +721,22 @@ func GreatestColor(r int, g int, b int) Channel {
 	if b > r && b > g {
 		return ChannelBlue
 	}
-
-	return ChannelNone
+	// All channels are equal so the color is grayscale
+	return ChannelGray
 }
 
 // IndexMult returns the index of the palette colour closest to c in Euclidean
 // R,G,B,A space. Strongest colour multiplied by the threshold value.
 func IndexMult(p color.Palette, c color.Color, thresh uint32) int {
-	cr, cg, cb, ca := c.RGBA()
+	cr, cg, cb, _ := c.RGBA()
 	// Is this colour visibly red, green, or blue?
 	brightest := GreatestColor(int(cr), int(cg), int(cb))
 	ret, bestSum := 0, uint32(1<<32-1)
 	for i, v := range p {
-		vr, vg, vb, va := v.RGBA()
+		vr, vg, vb, _ := v.RGBA()
 		rr := sqDiff(cr, vr)
 		gg := sqDiff(cg, vg)
 		bb := sqDiff(cb, vb)
-		aa := ca - va
-		if aa != 0 {
-			// Ignore alpha channel
-			aa = 0
-		}
 		switch brightest {
 		case ChannelRed:
 			rr *= thresh
