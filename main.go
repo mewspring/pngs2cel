@@ -614,6 +614,15 @@ func isTransparent(c color.Color) bool {
 	return false
 }
 
+// isBlack reports whether the given colour is black.
+func isBlack(c color.Color) bool {
+	if isTransparent(c) {
+		return false
+	}
+	r, g, b, _ := c.RGBA()
+	return r == 0 && g == 0 && b == 0
+}
+
 // parsePal parses the given PAL file and returns the corresponding palette.
 //
 // Below follows a pseudo-code description of the PAL file format.
@@ -768,6 +777,12 @@ func sqDiff(x, y uint32) uint32 {
 // FindClosest returns the palette index of the closest colour to orig based on
 // the chosen colour matching algorithm.
 func FindClosest(pal color.Palette, orig color.Color) int {
+	if !isBlack(orig) {
+		// Palette index 0 is hardcoded to black colour, which may always be used
+		// (both for -lower_pal (e.g. tiles, UI) and -upper_pal (e.g. monsters,
+		// spells)).
+		return 0
+	}
 	switch {
 	case lowerPal:
 		pal = pal[:128]
