@@ -614,15 +614,6 @@ func isTransparent(c color.Color) bool {
 	return false
 }
 
-// isBlack reports whether the given colour is black.
-func isBlack(c color.Color) bool {
-	if isTransparent(c) {
-		return false
-	}
-	r, g, b, _ := c.RGBA()
-	return r == 0 && g == 0 && b == 0
-}
-
 // parsePal parses the given PAL file and returns the corresponding palette.
 //
 // Below follows a pseudo-code description of the PAL file format.
@@ -657,6 +648,29 @@ func parsePal(palPath string) (color.Palette, error) {
 			G: buf[i*colorSize+1],
 			B: buf[i*colorSize+2],
 			A: 0xFF,
+		}
+	}
+	// Null out skipped indices, we'll force index 0 for black later
+	switch {
+	case lowerPal:
+		// Set indices 128-254 to black
+		for i := 128; i <= 254; i++ {
+			pal[i] = color.RGBA{
+				R: 0x00,
+				G: 0x00,
+				B: 0x00,
+				A: 0xFF,
+			}
+		}
+	case upperPal:
+		// Set indices 1-127 to black
+		for i := 1; i <= 127; i++ {
+			pal[i] = color.RGBA{
+				R: 0x00,
+				G: 0x00,
+				B: 0x00,
+				A: 0xFF,
+			}
 		}
 	}
 	return pal, nil
@@ -777,18 +791,6 @@ func sqDiff(x, y uint32) uint32 {
 // FindClosest returns the palette index of the closest colour to orig based on
 // the chosen colour matching algorithm.
 func FindClosest(pal color.Palette, orig color.Color) int {
-	if !isBlack(orig) {
-		// Palette index 0 is hardcoded to black colour, which may always be used
-		// (both for -lower_pal (e.g. tiles, UI) and -upper_pal (e.g. monsters,
-		// spells)).
-		return 0
-	}
-	switch {
-	case lowerPal:
-		pal = pal[:128]
-	case upperPal:
-		pal = pal[128:]
-	}
 	var idx int
 	if useCIE2000 {
 		idx = IndexCIEDE2000(pal, orig)
@@ -797,8 +799,12 @@ func FindClosest(pal color.Palette, orig color.Color) int {
 	} else {
 		idx = pal.Index(orig)
 	}
-	if upperPal {
-		idx += 128
+	if lowerPal || upperPal {
+		// Ensure index 0 is always chosen for black
+		r, g, b, _ := pal[idx].RGBA()
+		if r == 0 && g == 0 && b == 0 {
+			return 0
+		}
 	}
 	return idx
 }
