@@ -361,7 +361,7 @@ func getCL2EmbeddedFrame(img image.Image, pal color.Palette) (frame, header []by
 	}
 	i := 0
 	for y := bounds.Max.Y - 1; y >= bounds.Min.Y; y-- {
-		if (y+1)%32 == 0 {
+		if (y+1)%32 == 0 && i*2+1 < len(header) {
 			// Flush pixel line for Slab table.
 			if len(pixels) > 0 {
 				setAllRegular()
