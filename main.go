@@ -16,6 +16,7 @@ import (
 	ciede2000 "github.com/mattn/go-ciede2000"
 	"github.com/mewkiz/pkg/imgutil"
 	"github.com/pkg/errors"
+	"github.com/rickypai/natsort"
 )
 
 func usage() {
@@ -71,6 +72,7 @@ func main() {
 	switch {
 	case cl2ArchiveFlag:
 		dirs := paths
+		natsort.Strings(dirs)
 		cl2Archive, err := dirs2CL2Archive(dirs, output, palPath)
 		if err != nil {
 			log.Fatalf("%+v", err)
@@ -81,6 +83,7 @@ func main() {
 	default:
 		// Convert PNG images to a single CEL image.
 		pngPaths := paths
+		natsort.Strings(pngPaths)
 		celImg, err := pngs2CEL(pngPaths, output, palPath, cl2Flag, false)
 		if err != nil {
 			log.Fatalf("%+v", err)
@@ -108,6 +111,7 @@ func dirs2CL2Archive(dirs []string, output, palPath string) (*CL2Archive, error)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
+		natsort.Strings(pngPaths)
 		const cl2Flag = true
 		celImg, err := pngs2CEL(pngPaths, output, palPath, cl2Flag, true)
 		if err != nil {
