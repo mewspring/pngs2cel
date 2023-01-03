@@ -784,7 +784,7 @@ func IndexMult(p color.Palette, c color.Color, thresh uint32) int {
 }
 
 // sqDiff returns the squared-difference of x and y, shifted by 2 so that
-// adding four of those won't overflow a uint32.
+// adding three of those won't overflow a uint32.
 //
 // x and y are both assumed to be in the range [0, 0xffff].
 func sqDiff(x, y uint32) uint32 {
